@@ -345,7 +345,7 @@ details.grownups ol{margin:10px 0 0;padding-left:22px}
         <div class="photo-box" id="photoBox"><img id="resultImg" alt="Your tooth photo with marked spots"></div>
         <div class="map-box">
           <div id="toothMap"></div>
-          <div class="map-cap">Top teeth and bottom teeth</div>
+          <div class="map-cap" id="mapCap">Top teeth and bottom teeth</div>
         </div>
       </div>
       <div class="legend">
@@ -353,6 +353,8 @@ details.grownups ol{margin:10px 0 0;padding-left:22px}
         <span><i style="background:var(--plaque)"></i>Plaque</span>
         <span><i style="background:var(--tartar)"></i>Tartar</span>
         <span><i style="background:var(--stain)"></i>Stain</span>
+        <span><i style="background:#BDEFE3;border:2px solid var(--mint)"></i>Looks healthy</span>
+        <span><i style="background:#EEF1F5;border:2px dashed #AEB6C8"></i>Not in this photo</span>
       </div>
     </div>
 
@@ -546,7 +548,9 @@ function renderResults({mode, reason, sample, result: r}){
     pin.setAttribute("aria-label", `Spot ${k + 1}: ${KIND[s.kind].label}`);
     box.appendChild(pin);
   });
-  $("toothMap").innerHTML = toothMap(r.spots);
+  $("toothMap").innerHTML = toothMap(r.spots, r.jaw);
+  const jawName = {upper: "Top teeth", lower: "Bottom teeth", both: "Top and bottom teeth"}[r.jaw || "both"];
+  $("mapCap").textContent = r.spots.length ? jawName + " checked" : "🎉 " + jawName + " checked: no spots found";
   $("lookSection").hidden = !r.is_teeth_photo;
 
   // spot list
@@ -597,7 +601,9 @@ function renderResults({mode, reason, sample, result: r}){
 }
 
 /* tooth map: two arches of teeth, lit by region */
-function toothMap(spots){
+function toothMap(spots, jaw){
+  jaw = jaw || "both";
+  const inPhoto = upper => jaw === "both" || (upper ? jaw === "upper" : jaw === "lower");
   const zoneKind = {};
   const rank = {"possible cavity":4, tartar:3, plaque:2, stain:1};
   spots.forEach(s => { if (!zoneKind[s.region] || rank[s.kind] > rank[zoneKind[s.region]]) zoneKind[s.region] = s.kind; });
@@ -613,15 +619,21 @@ function toothMap(spots){
       const ang = Math.atan2(upper ? 140 * t : -140 * t, 128) * 180 / Math.PI;
       const zone = (upper ? "upper-" : "lower-") + zoneOf(i);
       const kind = zoneKind[zone];
-      const fill = kind ? KIND[kind].hex : "#FFFFFF";
+      const seen = inPhoto(upper);
+      const fill = kind ? KIND[kind].hex : seen ? "#BDEFE3" : "#EEF1F5";
+      const stroke = kind ? "#1D2B5C" : seen ? "#0B7D72" : "#AEB6C8";
+      const dash = !kind && !seen ? ' stroke-dasharray="5 4"' : "";
+      const tip = kind ? KIND[kind].label : seen ? "Looks healthy" : "Not in this photo";
       out += `<rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" rx="${big ? 9 : 11}" transform="rotate(${ang} ${x} ${y})"
-        fill="${fill}" stroke="#1D2B5C" stroke-width="3"><title>${REGION_NAME[zone]}${kind ? ": " + KIND[kind].label : ""}</title></rect>`;
+        fill="${fill}" stroke="${stroke}" stroke-width="3"${dash}><title>${REGION_NAME[zone]}: ${tip}</title></rect>`;
     }
     return out;
   };
-  return `<svg viewBox="-40 0 400 260" role="img" aria-label="Tooth map. ${Object.keys(zoneKind).map(z => REGION_NAME[z] + ": " + KIND[zoneKind[z]].label).join(". ") || "No spots marked."}">
-    <path d="M30 120 Q160 -20 290 120" fill="none" stroke="#FFB3C4" stroke-width="44" stroke-linecap="round" opacity=".55"/>
-    <path d="M30 140 Q160 280 290 140" fill="none" stroke="#FFB3C4" stroke-width="44" stroke-linecap="round" opacity=".55"/>
+  return `<svg viewBox="-40 -24 400 304" role="img" aria-label="Tooth map. ${Object.keys(zoneKind).map(z => REGION_NAME[z] + ": " + KIND[zoneKind[z]].label).join(". ") || "No spots marked."}">
+    <path d="M30 120 Q160 -20 290 120" fill="none" stroke="${inPhoto(true) ? "#FFB3C4" : "#E3E7EE"}" stroke-width="44" stroke-linecap="round" opacity=".55"/>
+    <path d="M30 140 Q160 280 290 140" fill="none" stroke="${inPhoto(false) ? "#FFB3C4" : "#E3E7EE"}" stroke-width="44" stroke-linecap="round" opacity=".55"/>
+    <text x="160" y="-6" text-anchor="middle" font-family="Baloo 2" font-weight="700" font-size="14" fill="${inPhoto(true) ? "#1D2B5C" : "#9AA3B5"}">Top teeth</text>
+    <text x="160" y="266" text-anchor="middle" font-family="Baloo 2" font-weight="700" font-size="14" fill="${inPhoto(false) ? "#1D2B5C" : "#9AA3B5"}">Bottom teeth</text>
     ${arch(true)}${arch(false)}
     <text x="-36" y="134" font-family="Baloo 2" font-weight="700" font-size="15" fill="#4A5785">Left</text>
     <text x="318" y="134" font-family="Baloo 2" font-weight="700" font-size="15" fill="#4A5785">Right</text>

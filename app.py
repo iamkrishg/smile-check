@@ -75,6 +75,7 @@ Rules:
 Return ONLY a JSON object with exactly these keys:
 {{
   "is_teeth_photo": true/false,
+  "jaw": "upper" | "lower" | "both"  (which teeth the photo shows: palate/roof of mouth visible = upper, tongue in the middle = lower, a front smile = both),
   "photo_quality": "good" | "blurry" | "too_dark" | "too_bright" | "too_far",
   "photo_tip": "one short tip to take a better photo, or empty string",
   "overall": "sparkly" | "okay" | "check_soon",
@@ -152,11 +153,12 @@ COLS = "ABCDEF"
 
 # Sample photos visitors can tap to try Smile Check (files in static/samples/)
 SAMPLES = [
-    {"id": "s1", "label": "Bottom teeth A", "file": "sample-1.jpg"},
-    {"id": "s2", "label": "Bottom teeth B", "file": "sample-2.jpg"},
-    {"id": "s3", "label": "Bottom teeth C", "file": "sample-3.jpg"},
-    {"id": "s4", "label": "Top teeth A", "file": "sample-4.jpg"},
-    {"id": "s5", "label": "Top teeth B", "file": "sample-5.jpg"},
+    # file names say what each photo shows, so a label can never point at the wrong picture
+    {"id": "s1", "label": "Bottom teeth A", "jaw": "lower", "file": "bottom-healthy.jpg"},
+    {"id": "s2", "label": "Top teeth A",    "jaw": "upper", "file": "top-healthy.jpg"},
+    {"id": "s3", "label": "Bottom teeth B", "jaw": "lower", "file": "bottom-early-spots.jpg"},
+    {"id": "s4", "label": "Bottom teeth C", "jaw": "lower", "file": "bottom-cavities.jpg"},
+    {"id": "s5", "label": "Top teeth B",    "jaw": "upper", "file": "top-cavities.jpg"},
 ]
 SAMPLE_BY_ID = {x["id"]: x for x in SAMPLES}
 SAMPLE_CACHE = {}  # sample id -> AI result, so repeat taps are instant and consistent
@@ -307,8 +309,15 @@ def clean_result(r: dict) -> dict:
     if any(s["kind"] == "possible cavity" for s in spots):
         overall = "check_soon"  # always nudge to a dentist if a cavity might be there
 
+    jaw = r.get("jaw") if r.get("jaw") in ("upper", "lower", "both") else None
+    if not jaw:  # work it out from the spots if the AI left it out
+        sides = {s["region"].split("-")[0] for s in spots}
+        jaw = sides.pop() if len(sides) == 1 else "both"
+        jaw = {"upper": "upper", "lower": "lower"}.get(jaw, "both")
+
     return {
         "is_teeth_photo": bool(r.get("is_teeth_photo", True)),
+        "jaw": jaw,
         "photo_quality": r.get("photo_quality", "good"),
         "photo_tip": str(r.get("photo_tip", ""))[:200],
         "overall": overall,
@@ -433,6 +442,7 @@ def check():
             for spot in result["spots"]:
                 place_spot(img, spot)
             if sample:
+                result["jaw"] = sample["jaw"]
                 SAMPLE_CACHE[sample["id"]] = result
                 return jsonify({"mode": "ai", "sample": sample["label"], "result": result})
             return jsonify({"mode": "ai", "result": result})
