@@ -67,6 +67,11 @@ Rules:
   Yellow or white fuzzy build-up near the gums is plaque. Hard yellow/brown crust at the gum line is tartar.
   Even light brown colour on the surface may just be a stain (from tea, juice, etc.).
 - A big plastic or model tooth with painted spots is fine: treat it like a real tooth.
+- Healthy teeth are NOT spots: natural grooves and their shadows, light yellow or ivory colour,
+  see-through edges, shine, and the dark gaps between teeth are all normal.
+- Dental mirrors, cheek holders (clear plastic), lips, tongue, gums and the roof of the mouth are not teeth. Never flag them.
+- Only flag a spot when you can clearly see it. If you are not sure, do not flag it.
+  Clean teeth with no spots is a great, common result: return an empty spots list.
 - If the photo does not clearly show teeth, set is_teeth_photo to false and leave spots empty.
 - If the photo is too blurry, dark or far away to judge, say so in photo_quality and give tips.
 - Do not comment on the person's face, skin, age, gender or anything except the teeth.
@@ -235,15 +240,14 @@ def place_spot(img: Image.Image, spot: dict) -> None:
     spot["y"] = (y0 + ys[keep].mean()) / h
 
 
-def ask_azure(image_b64: str, grid_b64: str) -> dict:
+def make_client():
     from openai import AzureOpenAI
+    return AzureOpenAI(azure_endpoint=AZURE_ENDPOINT, api_key=AZURE_KEY,
+                       api_version=AZURE_API_VERSION, timeout=40)
 
-    client = AzureOpenAI(
-        azure_endpoint=AZURE_ENDPOINT,
-        api_key=AZURE_KEY,
-        api_version=AZURE_API_VERSION,
-        timeout=40,
-    )
+
+def ask_azure(image_b64: str, grid_b64: str) -> dict:
+    client = make_client()
     text = chat(
         client,
         response_format={"type": "json_object"},
@@ -267,7 +271,7 @@ def chat(client, max_out: int = 1500, **kwargs) -> str:
     which reject 'temperature' and 'max_tokens'."""
     from openai import BadRequestError
     try:
-        r = client.chat.completions.create(model=AZURE_DEPLOYMENT, temperature=0.2,
+        r = client.chat.completions.create(model=AZURE_DEPLOYMENT, temperature=0,
                                            max_tokens=max_out, **kwargs)
     except BadRequestError as exc:
         msg = str(exc).lower()
@@ -279,6 +283,81 @@ def chat(client, max_out: int = 1500, **kwargs) -> str:
         r = client.chat.completions.create(model=AZURE_DEPLOYMENT,
                                            max_completion_tokens=max_out * 4, **kwargs)
     return r.choices[0].message.content or ""
+
+
+
+def mood_for(spots: list) -> str:
+    """One rule for the face, colour and stars, so they always agree."""
+    if any(s["kind"] == "possible cavity" and s["certainty"] in ("medium", "high") for s in spots):
+        return "check_soon"   # pink, worried face: nudge to a dentist
+    if spots:
+        return "okay"         # blue, calm face: small things to watch
+    return "sparkly"          # mint, happy face
+
+
+STARS_RANGE = {"sparkly": (4, 5), "okay": (3, 4), "check_soon": (1, 3)}
+
+HEALTHY_TEXT = {
+    "headline": "Sparkly clean teeth!",
+    "summary": "Toothie didn't find any spots in this photo. Keep up the great brushing!",
+}
+
+
+def spot_crop(img: Image.Image, spot: dict, size: int = 320) -> Image.Image:
+    """Zoom in on one spot (its grid square plus a margin) for the double-check."""
+    w, h = img.size
+    cell = spot.get("cell", "")
+    if len(cell) >= 2 and cell[0] in COLS and cell[1:].isdigit() and 1 <= int(cell[1:]) <= GRID:
+        cx, cy = (COLS.index(cell[0]) + 0.5) / GRID, (int(cell[1:]) - 0.5) / GRID
+    else:
+        cx, cy = spot["x"], spot["y"]
+    half = 0.9 / GRID
+    box = (int(max(0, cx - half) * w), int(max(0, cy - half) * h),
+           int(min(1, cx + half) * w), int(min(1, cy + half) * h))
+    c = img.crop(box)
+    c.thumbnail((size, size))
+    return c
+
+
+VERIFY_PROMPT = """You are double-checking a kids' tooth-screening demo.
+Each close-up below was cut from one mouth photo. For each one, decide if it CLEARLY shows the named problem
+ON A TOOTH. Answer "no" if the close-up shows only healthy tooth (normal grooves, shadows, shine, ivory colour),
+or mostly gum, tongue, lips, the roof of the mouth, a dental mirror or a plastic cheek holder.
+Return ONLY JSON: {"answers": [{"n": 1, "keep": true or false}, ...]} with one answer per close-up."""
+
+
+def verify_spots(client, img: Image.Image, spots: list) -> list:
+    """Second opinion on every flagged spot, using zoomed-in close-ups. Returns the spots that pass."""
+    if not spots:
+        return spots
+    content = [{"type": "text", "text": "Check these close-ups."}]
+    for i, sp in enumerate(spots, 1):
+        content.append({"type": "text", "text": f"Close-up {i}: is there a {sp['kind']} on a tooth?"})
+        content.append({"type": "image_url", "image_url": {
+            "url": f"data:image/jpeg;base64,{to_b64(spot_crop(img, sp))}", "detail": "high"}})
+    try:
+        text = chat(client, max_out=300, response_format={"type": "json_object"},
+                    messages=[{"role": "system", "content": VERIFY_PROMPT},
+                              {"role": "user", "content": content}])
+        keep = {int(a.get("n", 0)) for a in json.loads(text).get("answers", []) if a.get("keep") is True}
+        kept = [sp for i, sp in enumerate(spots, 1) if i in keep]
+        logging.info("[Smile Check] double-check kept %d of %d spots", len(kept), len(spots))
+        return kept
+    except Exception as exc:  # if the double-check fails, keep only the confident spots
+        logging.warning("[Smile Check] double-check failed, keeping medium/high spots: %s", exc)
+        return [sp for sp in spots if sp["certainty"] in ("medium", "high")]
+
+
+def finish_result(result: dict) -> dict:
+    """After the double-check: make the mood, stars and words match what is left."""
+    had_spots = result.get("_had_spots", bool(result["spots"]))
+    result.pop("_had_spots", None)
+    result["overall"] = mood_for(result["spots"])
+    lo, hi = STARS_RANGE[result["overall"]]
+    result["stars"] = max(lo, min(hi, result["stars"]))
+    if had_spots and not result["spots"]:      # every spot was a false alarm
+        result.update(HEALTHY_TEXT)
+    return result
 
 
 def clean_result(r: dict) -> dict:
@@ -306,10 +385,12 @@ def clean_result(r: dict) -> dict:
         })
 
     overall = r.get("overall") if r.get("overall") in ("sparkly", "okay", "check_soon") else "okay"
-    if any(s["kind"] == "possible cavity" for s in spots):
-        overall = "check_soon"  # always nudge to a dentist if a cavity might be there
+    overall = mood_for(spots)
 
     jaw = r.get("jaw") if r.get("jaw") in ("upper", "lower", "both") else None
+    if jaw in ("upper", "lower"):   # keep spot regions on the jaw the photo shows
+        for s in spots:
+            s["region"] = jaw + "-" + s["region"].split("-", 1)[1]
     if not jaw:  # work it out from the spots if the AI left it out
         sides = {s["region"].split("-")[0] for s in spots}
         jaw = sides.pop() if len(sides) == 1 else "both"
@@ -439,8 +520,11 @@ def check():
     if azure_ready():
         try:
             result = clean_result(ask_azure(to_b64(img), to_b64(grid_copy(img))))
+            result["_had_spots"] = bool(result["spots"])
+            result["spots"] = verify_spots(make_client(), img, result["spots"])   # double-check
             for spot in result["spots"]:
                 place_spot(img, spot)
+            result = finish_result(result)
             if sample:
                 result["jaw"] = sample["jaw"]
                 SAMPLE_CACHE[sample["id"]] = result

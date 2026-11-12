@@ -293,7 +293,7 @@ details.grownups ol{margin:10px 0 0;padding-left:22px}
         {% for smp in samples %}
         <button class="sample" type="button" data-id="{{ smp.id }}" data-label="{{ smp.label }}"
                 data-full="/static/samples/{{ smp.file }}">
-          <img src="/static/samples/{{ smp.file | replace('.jpg', '-thumb.jpg') }}" alt="Sample photo: {{ smp.label }}" loading="lazy">
+          <img src="/static/samples/{{ smp.file | replace(".jpg", "-thumb.jpg") }}" alt="Sample photo: {{ smp.label }}" loading="lazy">
           {{ smp.label }}
         </button>
         {% endfor %}
@@ -540,6 +540,17 @@ function renderResults({mode, reason, sample, result: r}){
     // Sample spots don't belong to this photo, so don't pin them on it.
     box.insertAdjacentHTML("beforeend", `<div class="sample-tag">🧪 Sample result. Dots appear here when AI checks your real photo.</div>`);
   }
+  // move dots apart a little if two would sit on top of each other
+  const placed = [];
+  r.spots.forEach(s => {
+    for (let tries = 0; tries < 6; tries++) {
+      const hit = placed.find(p => Math.hypot(p.x - s.x, (p.y - s.y) * 0.75) < 0.07);
+      if (!hit) break;
+      s.x = Math.min(0.97, Math.max(0.03, s.x + (s.x >= hit.x ? 0.05 : -0.05)));
+      s.y = Math.min(0.95, Math.max(0.05, s.y + (s.y >= hit.y ? 0.04 : -0.04)));
+    }
+    placed.push({x: s.x, y: s.y});
+  });
   (mode === "practice" ? [] : r.spots).forEach((s, k) => {
     const pin = document.createElement("div");
     pin.className = "pin" + (s.kind === "possible cavity" ? " pulse" : "");
@@ -604,8 +615,26 @@ function renderResults({mode, reason, sample, result: r}){
 function toothMap(spots, jaw){
   jaw = jaw || "both";
   const inPhoto = upper => jaw === "both" || (upper ? jaw === "upper" : jaw === "lower");
-  const zoneKind = {};
+  // one tooth per spot: the dot's left-right position in the photo picks the tooth on the map
+  const toothKind = {};
   const rank = {"possible cavity":4, tartar:3, plaque:2, stain:1};
+  spots.forEach(s => {
+    // if the photo shows only one jaw, every spot belongs to that jaw
+    const upperSpot = jaw === "upper" ? true : jaw === "lower" ? false : s.region.startsWith("upper");
+    let i;
+    if (jaw === "upper" || jaw === "lower") {
+      // top-down photo: teeth curve around the tongue/palate, so use the angle around the curve
+      const cy = jaw === "lower" ? 0.12 : 0.88;            // the curve's open end (back of the mouth)
+      const ang = Math.atan2(s.x - 0.5, Math.abs(s.y - cy)) * 180 / Math.PI;   // 0 = front teeth
+      i = Math.round((ang + 72) / 144 * 9);
+    } else {
+      i = Math.round((s.x - 0.12) / 0.76 * 9);              // front smile: left to right
+    }
+    i = Math.max(0, Math.min(9, i));
+    const key = (upperSpot ? "u" : "l") + i;
+    if (!toothKind[key] || rank[s.kind] > rank[toothKind[key]]) toothKind[key] = s.kind;
+  });
+  const zoneKind = {};
   spots.forEach(s => { if (!zoneKind[s.region] || rank[s.kind] > rank[zoneKind[s.region]]) zoneKind[s.region] = s.kind; });
   const zoneOf = i => i < 3 ? "left" : i > 6 ? "right" : "front";
   const arch = (upper) => {
@@ -618,7 +647,7 @@ function toothMap(spots, jaw){
       const w = big ? 30 : 24, h = big ? 30 : 34;
       const ang = Math.atan2(upper ? 140 * t : -140 * t, 128) * 180 / Math.PI;
       const zone = (upper ? "upper-" : "lower-") + zoneOf(i);
-      const kind = zoneKind[zone];
+      const kind = toothKind[(upper ? "u" : "l") + i];
       const seen = inPhoto(upper);
       const fill = kind ? KIND[kind].hex : seen ? "#BDEFE3" : "#EEF1F5";
       const stroke = kind ? "#1D2B5C" : seen ? "#0B7D72" : "#AEB6C8";
