@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smile Check</title>
+<link rel="icon" type="image/png" href="/static/icons/favicon-64.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0FA898">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Smile Check">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+@font-face{font-family:"Baloo 2";font-weight:700;src:url("/static/fonts/baloo-2-latin-700-normal.woff2") format("woff2");font-display:swap}
+@font-face{font-family:"Baloo 2";font-weight:800;src:url("/static/fonts/baloo-2-latin-800-normal.woff2") format("woff2");font-display:swap}
+@font-face{font-family:"Atkinson";font-weight:400;src:url("/static/fonts/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2");font-display:swap}
+@font-face{font-family:"Atkinson";font-weight:700;src:url("/static/fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2");font-display:swap}
+
+:root{
+  --wash:#E6F8F4;      /* mint mouthwash background */
+  --enamel:#FFFFFF;
+  --ink:#1D2B5C;       /* deep navy text */
+  --ink-soft:#4A5785;
+  --mint:#0FA898;
+  --mint-deep:#0B7D72;
+  --gum:#FF6F8E;       /* gum pink */
+  --gum-soft:#FFE3EA;
+  --sun:#FFC23A;       /* stars */
+  --cavity:#E2463A;
+  --plaque:#E9A400;
+  --tartar:#A86B2D;
+  --stain:#8A7B70;
+  --line:#CFEDE7;
+  --radius-big:28px;
+  --radius:18px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--wash);color:var(--ink);
+  font-family:"Atkinson",system-ui,sans-serif;font-size:18px;line-height:1.5;
+  background-image:radial-gradient(circle at 12% 8%,#fff 0 2px,transparent 3px),radial-gradient(circle at 80% 30%,#fff 0 3px,transparent 4px),radial-gradient(circle at 40% 70%,#fff 0 2px,transparent 3px);
+  background-size:220px 220px;
+}
+h1,h2,h3{font-family:"Baloo 2",system-ui,sans-serif;line-height:1.1;margin:0}
+button{font:inherit;color:inherit}
+:focus-visible{outline:4px solid var(--gum);outline-offset:3px;border-radius:12px}
+.top-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.install-btn{appearance:none;border:0;cursor:pointer;background:var(--ink);color:#fff;font-family:"Baloo 2";font-weight:700;font-size:16px;padding:6px 14px;border-radius:999px}
+.ios-tip{display:none;margin:0 0 14px;background:#fff;border:3px solid var(--line);border-radius:18px;padding:10px 14px;font-size:15px}
+@media (display-mode: standalone){ .install-btn,.ios-tip{display:none!important} }
+.wrap{max-width:900px;margin:0 auto;padding:20px 16px 56px}
+
+/* ---------- header ---------- */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.logo{display:flex;align-items:center;gap:10px;font-family:"Baloo 2";font-weight:800;font-size:28px}
+.logo-stripe{display:block;height:8px;width:100%;border-radius:8px;margin-top:-4px;
+  background:repeating-linear-gradient(90deg,var(--gum) 0 18px,#fff 18px 26px,var(--mint) 26px 44px,#fff 44px 52px)}
+.ai-pill{font-size:14px;font-weight:700;padding:6px 12px;border-radius:999px;background:#fff;border:2px solid var(--line);white-space:nowrap}
+.ai-pill .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--plaque)}
+.ai-pill.on .dot{background:var(--mint)}
+
+/* ---------- hero / upload ---------- */
+.hero{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:center;margin:18px 0 24px}
+.bubble{position:relative;background:#fff;border-radius:var(--radius-big);padding:20px 24px;box-shadow:0 6px 0 var(--line)}
+.bubble::before{content:"";position:absolute;left:-16px;top:50%;margin-top:-14px;border:14px solid transparent;border-right:18px solid #fff;border-left:0}
+.bubble h1{font-size:clamp(32px,6vw,48px);font-weight:800;color:var(--ink)}
+.bubble p{margin:8px 0 0;color:var(--ink-soft)}
+
+.tray{background:#fff;border:4px dashed var(--mint);border-radius:var(--radius-big);padding:28px 20px;text-align:center;transition:background .2s,border-color .2s}
+.tray.drag{background:var(--gum-soft);border-color:var(--gum)}
+.tray-icon{font-size:56px;line-height:1}
+.tray h2{font-size:28px;margin:6px 0 4px}
+.tray p{margin:0 0 18px;color:var(--ink-soft)}
+.btns{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.btn{appearance:none;border:0;cursor:pointer;border-radius:999px;padding:14px 26px;font-family:"Baloo 2";font-weight:800;font-size:21px;display:inline-flex;align-items:center;gap:8px;
+  transition:transform .12s, box-shadow .12s}
+.btn:active{transform:translateY(3px)}
+.btn-main{background:var(--mint);color:#fff;box-shadow:0 5px 0 var(--mint-deep)}
+.btn-main:active{box-shadow:0 2px 0 var(--mint-deep)}
+.btn-soft{background:var(--gum-soft);color:#B22952;box-shadow:0 5px 0 #F7B9C8}
+.btn-soft:active{box-shadow:0 2px 0 #F7B9C8}
+.btn-ghost{background:#fff;color:var(--ink);border:3px solid var(--line);box-shadow:none}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+
+.preview{display:none;margin:0 auto 16px;max-width:360px}
+.preview img{width:100%;border-radius:var(--radius);display:block;border:4px solid var(--wash)}
+.tray.has-photo .preview{display:block}
+.tray.has-photo .tray-icon,.tray.has-photo .pick-text{display:none}
+
+.tips{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
+.tip{background:#fff;border-radius:var(--radius);padding:14px;display:flex;gap:10px;align-items:flex-start;font-size:16px}
+.tip b{display:block;font-family:"Baloo 2";font-size:18px}
+.tip span.e{font-size:28px;line-height:1}
+
+.error{display:none;margin-top:14px;background:#FFF1EE;border:3px solid #FFC9BE;color:#8E2A1C;border-radius:var(--radius);padding:12px 16px;font-weight:700}
+
+/* ---------- loading ---------- */
+#loading{display:none;text-align:center;padding:40px 0}
+#loading .mascot-box{width:180px;margin:0 auto}
+#loading h2{font-size:30px;margin-top:10px}
+#loading p{color:var(--ink-soft);min-height:1.5em}
+.brush{animation:scrub .5s ease-in-out infinite alternate;transform-origin:center}
+@keyframes scrub{from{transform:translateX(-10px) rotate(-8deg)}to{transform:translateX(10px) rotate(8deg)}}
+.bar{height:14px;max-width:320px;margin:18px auto 0;background:#fff;border-radius:999px;overflow:hidden}
+.bar i{display:block;height:100%;width:40%;border-radius:999px;background:repeating-linear-gradient(45deg,var(--mint) 0 12px,#4FD1C3 12px 24px);animation:slide 1.2s linear infinite}
+@keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(260%)}}
+
+/* ---------- results ---------- */
+#results{display:none}
+.practice{background:#FFF6DA;border:3px solid #FFE08A;border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;font-size:16px}
+.practice b{font-family:"Baloo 2";font-size:18px}
+
+.verdict{display:grid;grid-template-columns:170px 1fr;gap:20px;align-items:center;border-radius:var(--radius-big);padding:22px;color:#fff;margin-bottom:20px}
+.verdict.sparkly{background:var(--mint)}
+.verdict.okay{background:#3B6FD8}
+.verdict.check_soon{background:var(--gum)}
+.verdict h2{font-size:clamp(28px,5vw,40px);font-weight:800}
+.verdict p{margin:8px 0 12px;font-size:19px}
+.stars{display:flex;gap:6px;margin-top:6px}
+.star{width:44px;height:44px;opacity:.28;transform:scale(.6);transition:transform .35s cubic-bezier(.3,1.6,.5,1),opacity .2s}
+.star.lit{opacity:1;transform:scale(1)}
+.read{background:rgba(255,255,255,.2);color:#fff;border:2px solid rgba(255,255,255,.6);padding:8px 16px;font-size:17px;box-shadow:none}
+.verdict .mascot-box{background:rgba(255,255,255,.18);border-radius:50%;padding:12px}
+
+.section{background:#fff;border-radius:var(--radius-big);padding:22px;margin-bottom:20px}
+.section h3{font-size:26px;margin-bottom:4px}
+.section .sub{color:var(--ink-soft);margin:0 0 16px;font-size:16px}
+
+.look{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.photo-box{position:relative;border-radius:var(--radius);overflow:hidden;background:var(--wash)}
+.photo-box img{display:block;width:100%}
+.sample-tag{position:absolute;left:10px;right:10px;bottom:10px;background:rgba(255,246,218,.95);border:2px solid #FFE08A;border-radius:12px;padding:8px 12px;font-size:15px;font-weight:700;color:var(--ink)}
+.pin{position:absolute;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:4px solid #fff;color:#fff;font-family:"Baloo 2";font-weight:800;font-size:17px;display:grid;place-items:center;box-shadow:0 0 0 3px rgba(0,0,0,.18)}
+.pin::after{content:"";position:absolute;inset:-12px;border-radius:50%;border:3px solid currentColor;opacity:.0}
+.pin.pulse::after{animation:ring 1.6s ease-out infinite;border-color:#fff}
+@keyframes ring{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.4);opacity:0}}
+.map-box svg{width:100%;height:auto;display:block}
+.map-cap{text-align:center;font-size:14px;color:var(--ink-soft);margin-top:4px}
+
+.legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:14px;font-size:15px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:14px;border-radius:50%;display:inline-block}
+
+.spot{display:grid;grid-template-columns:44px 1fr;gap:14px;padding:16px 0;border-top:2px dashed var(--line)}
+.spot:first-of-type{border-top:0;padding-top:4px}
+.spot .num{width:44px;height:44px;border-radius:50%;color:#fff;font-family:"Baloo 2";font-weight:800;font-size:22px;display:grid;place-items:center}
+.spot h4{margin:0;font-family:"Baloo 2";font-size:22px;line-height:1.2}
+.spot .where{font-size:15px;color:var(--ink-soft)}
+.spot p{margin:6px 0 0}
+.sure{display:inline-flex;gap:4px;align-items:center;font-size:14px;color:var(--ink-soft);margin-top:8px}
+.sure i{width:22px;height:8px;border-radius:4px;background:var(--line)}
+.sure i.on{background:var(--ink)}
+.none{display:flex;gap:14px;align-items:center;font-size:19px}
+.none span{font-size:44px}
+
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{background:#E2F7F2;color:var(--mint-deep);border-radius:999px;padding:8px 14px;font-weight:700}
+
+.missions{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.mission{appearance:none;text-align:left;cursor:pointer;background:var(--wash);border:3px solid transparent;border-radius:var(--radius);padding:16px;display:flex;flex-direction:column;gap:6px;transition:background .2s,border-color .2s}
+.mission .e{font-size:38px;line-height:1}
+.mission b{font-family:"Baloo 2";font-size:20px;line-height:1.15}
+.mission small{font-size:15px;color:var(--ink-soft)}
+.mission .tick{margin-top:auto;font-weight:700;font-size:15px;color:var(--mint-deep)}
+.mission[aria-pressed="true"]{background:#D3F5EE;border-color:var(--mint)}
+.mission[aria-pressed="true"] .tick::before{content:"✔ "}
+.mission-score{margin-top:12px;font-weight:700}
+
+.strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;counter-reset:s}
+.panel{background:var(--wash);border-radius:var(--radius);padding:14px;text-align:center;position:relative}
+.panel::before{counter-increment:s;content:counter(s);position:absolute;top:8px;left:10px;width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;font-weight:700;font-size:14px;display:grid;place-items:center}
+.panel .e{font-size:44px;line-height:1.2}
+.panel b{display:block;font-family:"Baloo 2";font-size:19px;margin-top:4px}
+.panel small{font-size:14px;color:var(--ink-soft);display:block}
+
+.dentist{display:flex;gap:16px;align-items:center;background:var(--ink);color:#fff;border-radius:var(--radius-big);padding:20px 22px;margin-bottom:20px}
+.dentist .e{font-size:48px}
+.dentist b{font-family:"Baloo 2";font-size:22px;display:block}
+.again{text-align:center;margin:26px 0}
+
+details.grownups{background:#fff;border-radius:var(--radius);padding:14px 18px;font-size:16px}
+details.grownups summary{cursor:pointer;font-weight:700}
+details.grownups ol{margin:10px 0 0;padding-left:22px}
+.foot{font-size:14px;color:var(--ink-soft);text-align:center;margin-top:28px}
+
+/* mascot moods */
+.mood{display:none}
+[data-mood="sparkly"] .m-sparkly,[data-mood="okay"] .m-okay,[data-mood="check_soon"] .m-check_soon,[data-mood="hello"] .m-hello{display:inline}
+
+/* ---------- small screens ---------- */
+@media (max-width:720px){
+  body{font-size:17px}
+  .hero{grid-template-columns:1fr;text-align:center}
+  .hero .mascot-box{width:140px;margin:0 auto}
+  .bubble::before{left:50%;top:-16px;margin:0 0 0 -14px;border:14px solid transparent;border-bottom:18px solid #fff;border-top:0}
+  .tips{grid-template-columns:1fr}
+  .verdict{grid-template-columns:1fr;text-align:center}
+  .verdict .mascot-box{width:130px;margin:0 auto}
+  .stars{justify-content:center}
+  .look{grid-template-columns:1fr}
+  .missions{grid-template-columns:1fr}
+  .strip{grid-template-columns:1fr 1fr}
+  .star{width:38px;height:38px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<!-- Toothie mascot, reused in several places -->
+<template id="mascot-tpl">
+<svg viewBox="0 0 160 170" role="img" aria-label="Toothie the tooth helper">
+  <path d="M80 18c-14-10-34-12-48-4C14 24 10 48 16 72c5 20 12 34 16 56 3 18 8 30 18 30 12 0 12-22 18-36 3-7 7-10 12-10s9 3 12 10c6 14 6 36 18 36 10 0 15-12 18-30 4-22 11-36 16-56 6-24 2-48-16-58-14-8-34-6-48 4z" fill="#fff" stroke="#1D2B5C" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M36 34c8-8 20-8 26-4" fill="none" stroke="#DDF3EF" stroke-width="7" stroke-linecap="round"/>
+  <ellipse cx="44" cy="86" rx="10" ry="6" fill="#FFB3C4"/><ellipse cx="116" cy="86" rx="10" ry="6" fill="#FFB3C4"/>
+  <g fill="#1D2B5C">
+    <g class="mood m-hello m-sparkly m-okay"><ellipse cx="58" cy="68" rx="7" ry="9"/><ellipse cx="102" cy="68" rx="7" ry="9"/><circle cx="60" cy="65" r="2.5" fill="#fff"/><circle cx="104" cy="65" r="2.5" fill="#fff"/></g>
+    <g class="mood m-check_soon"><ellipse cx="58" cy="70" rx="7" ry="8"/><ellipse cx="102" cy="70" rx="7" ry="8"/><circle cx="60" cy="67" r="2.5" fill="#fff"/><circle cx="104" cy="67" r="2.5" fill="#fff"/>
+      <path d="M46 58l16-8M114 58l-16-8" stroke="#1D2B5C" stroke-width="5" stroke-linecap="round"/></g>
+  </g>
+  <path class="mood m-hello m-sparkly" d="M58 92c8 14 36 14 44 0" fill="#FF6F8E" stroke="#1D2B5C" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path class="mood m-okay" d="M62 96c8 6 28 6 36 0" fill="none" stroke="#1D2B5C" stroke-width="5" stroke-linecap="round"/>
+  <path class="mood m-check_soon" d="M64 100c6-5 26-5 32 0" fill="none" stroke="#1D2B5C" stroke-width="5" stroke-linecap="round"/>
+  <g class="mood m-sparkly" fill="#FFC23A"><path d="M140 20l4 10 10 4-10 4-4 10-4-10-10-4 10-4z"/><path d="M18 120l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/></g>
+</svg>
+</template>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="logo">🦷 Smile Check</div>
+      <span class="logo-stripe" aria-hidden="true"></span>
+    </div>
+    <div class="top-right">
+      <button class="install-btn" id="installBtn" type="button" hidden>📲 Install app</button>
+      <div class="ai-pill" id="aiPill"><span class="dot"></span><span id="aiText">Checking AI…</span></div>
+    </div>
+  </header>
+
+  <p class="ios-tip" id="iosTip">📲 <b>Use Smile Check like an app:</b> tap the Share button, then <b>Add to Home Screen</b>.</p>
+
+  <!-- STEP 1: upload -->
+  <main id="start">
+    <section class="hero">
+      <div class="mascot-box" data-mood="hello"></div>
+      <div class="bubble">
+        <h1>Show me your smile!</h1>
+        <p>I'm Toothie. Send me a photo of your teeth and I'll look for spots that might need some care.</p>
+      </div>
+    </section>
+
+    <section class="tray" id="tray">
+      <div class="preview"><img id="previewImg" alt="Your tooth photo"></div>
+      <div class="tray-icon" aria-hidden="true">📸</div>
+      <div class="pick-text">
+        <h2>Add a tooth photo</h2>
+        <p>Drag a photo here, or use a button.</p>
+      </div>
+      <div class="btns">
+        <button class="btn btn-soft" id="cameraBtn" type="button">📷 Take a photo</button>
+        <button class="btn btn-ghost" id="chooseBtn" type="button">🖼️ Choose a photo</button>
+        <button class="btn btn-main" id="checkBtn" type="button" disabled>✨ Check my teeth</button>
+      </div>
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
+      <input type="file" id="fileInput" accept="image/*" hidden>
+      <div class="error" id="error" role="alert"></div>
+    </section>
+
+    <section class="tips" aria-label="Photo tips">
+      <div class="tip"><span class="e">💡</span><div><b>Bright light</b>Stand near a window or turn on a lamp.</div></div>
+      <div class="tip"><span class="e">😁</span><div><b>Big smile</b>Open wide so the teeth are easy to see.</div></div>
+      <div class="tip"><span class="e">🔍</span><div><b>Get close</b>Fill the photo with teeth, not your face.</div></div>
+    </section>
+  </main>
+
+  <!-- STEP 2: loading -->
+  <section id="loading" aria-live="polite">
+    <div class="mascot-box" data-mood="hello"></div>
+    <svg viewBox="0 0 120 30" width="120" aria-hidden="true" style="display:block;margin:-10px auto 0"><g class="brush"><rect x="10" y="12" width="80" height="8" rx="4" fill="#0FA898"/><rect x="84" y="4" width="26" height="12" rx="3" fill="#fff" stroke="#1D2B5C" stroke-width="3"/></g></svg>
+    <h2>Toothie is looking…</h2>
+    <p id="loadMsg">Counting teeth</p>
+    <div class="bar"><i></i></div>
+  </section>
+
+  <!-- STEP 3: results -->
+  <section id="results" aria-live="polite">
+    <div class="practice" id="practice" hidden><b>🧪 Practice mode.</b> <span id="practiceWhy"></span> Connect Azure AI to check real photos.</div>
+
+    <div class="verdict" id="verdict">
+      <div class="mascot-box" id="verdictMascot"></div>
+      <div>
+        <h2 id="headline"></h2>
+        <div class="stars" id="stars" role="img"></div>
+        <p id="summary"></p>
+        <button class="btn read" id="readBtn" type="button">🔊 Read it to me</button>
+      </div>
+    </div>
+
+    <div class="section" id="qualityBox" hidden>
+      <h3>📷 Let's try a better photo</h3>
+      <p id="qualityText" style="margin:0"></p>
+    </div>
+
+    <div class="section" id="lookSection">
+      <h3>Where Toothie looked</h3>
+      <p class="sub">Numbered dots show spots on your photo. The tooth map lights up the same areas, as they appear in your picture.</p>
+      <div class="look">
+        <div class="photo-box" id="photoBox"><img id="resultImg" alt="Your tooth photo with marked spots"></div>
+        <div class="map-box">
+          <div id="toothMap"></div>
+          <div class="map-cap">Top teeth and bottom teeth</div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--cavity)"></i>Might be a cavity</span>
+        <span><i style="background:var(--plaque)"></i>Plaque</span>
+        <span><i style="background:var(--tartar)"></i>Tartar</span>
+        <span><i style="background:var(--stain)"></i>Stain</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>What Toothie found</h3>
+      <div id="spots"></div>
+    </div>
+
+    <div class="section" id="goodSection">
+      <h3>🌟 Things that look great</h3>
+      <div class="chips" id="good"></div>
+    </div>
+
+    <div class="section">
+      <h3>Your tooth missions</h3>
+      <p class="sub">Tap a mission when you've done it today.</p>
+      <div class="missions" id="missions"></div>
+      <div class="mission-score" id="missionScore" aria-live="polite"></div>
+    </div>
+
+    <div class="section">
+      <h3>How a cavity happens</h3>
+      <p class="sub">Cavities don't appear overnight. They grow slowly, so you can stop them early.</p>
+      <div class="strip">
+        <div class="panel"><div class="e">🍬</div><b>Sugar stays</b><small>Bits of sweets and juice stick to teeth.</small></div>
+        <div class="panel"><div class="e">🦠</div><b>Germs feast</b><small>Tiny mouth germs eat the sugar.</small></div>
+        <div class="panel"><div class="e">🧪</div><b>Acid attack</b><small>The germs make acid that softens enamel.</small></div>
+        <div class="panel"><div class="e">🕳️</div><b>A hole forms</b><small>Over time a small hole, a cavity, appears.</small></div>
+      </div>
+    </div>
+
+    <div class="dentist">
+      <div class="e" aria-hidden="true">👩‍⚕️</div>
+      <div><b>A dentist has the final say</b><span id="dentistNote"></span></div>
+    </div>
+
+    <div class="again"><button class="btn btn-main" id="againBtn" type="button">📸 Check another photo</button></div>
+
+    <details class="grownups">
+      <summary>For grown-ups and judges: how this works</summary>
+      <ol>
+        <li>The photo is rotated, shrunk to 1024 px and re-saved, which removes location data. It is never stored.</li>
+        <li>The photo is sent to an Azure OpenAI GPT-4o vision model with instructions to describe what it sees in kid-friendly words, never diagnose, and return structured data.</li>
+        <li>Python checks the answer is safe and well-formed. If a possible cavity is found, the result always recommends a dentist.</li>
+        <li>This page turns the data into stars, pins, a tooth map and missions. "Read it to me" uses the browser's built-in voice.</li>
+      </ol>
+      <p style="margin-bottom:0"><b>Limits:</b> a phone photo can't show the spaces between teeth or what an X-ray reveals, and a clean result does not prove teeth are healthy. Real tools such as AICaries were tested in research studies; this demo is not.</p>
+    </details>
+  </section>
+
+  <p class="foot">Smile Check is a student science demo, not a medical device. Always see a dentist for a real check-up.</p>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const KIND = {
+  "possible cavity": {color:"var(--cavity)", hex:"#E2463A", label:"Might be a cavity", emoji:"🕳️"},
+  "plaque":          {color:"var(--plaque)", hex:"#E9A400", label:"Plaque", emoji:"🦠"},
+  "tartar":          {color:"var(--tartar)", hex:"#A86B2D", label:"Tartar", emoji:"🪨"},
+  "stain":           {color:"var(--stain)",  hex:"#8A7B70", label:"Stain", emoji:"☕"}
+};
+const REGION_NAME = {
+  "upper-left":"Top teeth, left side", "upper-front":"Top front teeth", "upper-right":"Top teeth, right side",
+  "lower-left":"Bottom teeth, left side", "lower-front":"Bottom front teeth", "lower-right":"Bottom teeth, right side"
+};
+const QUALITY = {
+  blurry:"The photo is a bit blurry. Hold the phone still and tap the screen to focus.",
+  too_dark:"The photo is too dark. Try near a window or turn on more lights.",
+  too_bright:"The photo is too bright. Move away from the flash or direct sunlight.",
+  too_far:"The teeth are too far away. Move the camera closer so teeth fill the photo."
+};
+let photoFile = null, photoURL = null, lastSpeech = "";
+
+/* mascot */
+const mascotSVG = $("mascot-tpl").innerHTML;
+document.querySelectorAll(".mascot-box").forEach(b => b.innerHTML = mascotSVG);
+
+/* AI status pill */
+fetch("/api/status").then(r => r.json()).then(s => {
+  $("aiPill").classList.toggle("on", s.ai_ready);
+  $("aiText").textContent = s.ai_ready ? "AI connected" : "Practice mode";
+}).catch(() => { $("aiText").textContent = "Practice mode"; });
+
+/* picking a photo */
+$("cameraBtn").onclick = () => $("cameraInput").click();
+$("chooseBtn").onclick = () => $("fileInput").click();
+$("cameraInput").onchange = e => setPhoto(e.target.files[0]);
+$("fileInput").onchange = e => setPhoto(e.target.files[0]);
+const tray = $("tray");
+["dragenter","dragover"].forEach(ev => tray.addEventListener(ev, e => { e.preventDefault(); tray.classList.add("drag"); }));
+["dragleave","drop"].forEach(ev => tray.addEventListener(ev, e => { e.preventDefault(); tray.classList.remove("drag"); }));
+tray.addEventListener("drop", e => setPhoto(e.dataTransfer.files[0]));
+
+function showError(msg){ const el = $("error"); el.textContent = msg; el.style.display = msg ? "block" : "none"; }
+
+function setPhoto(file){
+  showError("");
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { showError("That isn't a photo. Pick a JPG or PNG picture."); return; }
+  photoFile = file;
+  if (photoURL) URL.revokeObjectURL(photoURL);
+  photoURL = URL.createObjectURL(file);
+  $("previewImg").src = photoURL;
+  tray.classList.add("has-photo");
+  $("checkBtn").disabled = false;
+  $("checkBtn").focus();
+}
+
+/* sending it */
+const LOAD_MSGS = ["Counting teeth", "Looking for brown spots", "Checking near the gums", "Writing your report"];
+let loadTimer;
+$("checkBtn").onclick = async () => {
+  if (!photoFile) return;
+  show("loading");
+  let i = 0; $("loadMsg").textContent = LOAD_MSGS[0];
+  loadTimer = setInterval(() => { i = (i + 1) % LOAD_MSGS.length; $("loadMsg").textContent = LOAD_MSGS[i]; }, 1600);
+  const form = new FormData(); form.append("photo", photoFile);
+  try {
+    const res = await fetch("/api/check", {method:"POST", body:form});
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Something went wrong.");
+    await new Promise(r => setTimeout(r, 900)); // let the loading moment land
+    renderResults(data);
+  } catch (err) {
+    show("start");
+    showError(err.message.includes("fetch") ? "Can't reach Smile Check. Is the Python app still running?" : err.message);
+  } finally { clearInterval(loadTimer); }
+};
+
+function show(id){
+  ["start","loading","results"].forEach(s => $(s).style.display = s === id ? "block" : "none");
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+/* results */
+function renderResults({mode, reason, result: r}){
+  show("results");
+  $("practice").hidden = mode !== "practice";
+  $("practiceWhy").textContent = reason || "";
+
+  const mood = !r.is_teeth_photo ? "okay" : r.overall;
+  $("verdict").className = "verdict " + mood;
+  $("verdictMascot").dataset.mood = mood;
+  $("headline").textContent = r.is_teeth_photo ? r.headline : "Hmm, I can't see teeth!";
+  $("summary").textContent = r.is_teeth_photo ? r.summary : "Try a close-up photo of a big smile so I can see your teeth.";
+
+  // stars - the one big animated moment
+  const starBox = $("stars"); starBox.innerHTML = "";
+  const n = r.is_teeth_photo ? r.stars : 0;
+  starBox.setAttribute("aria-label", `${n} out of 5 stars`);
+  for (let k = 0; k < 5; k++){
+    starBox.insertAdjacentHTML("beforeend", `<svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z" fill="#FFC23A" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>`);
+  }
+  [...starBox.children].forEach((s, k) => { if (k < n) setTimeout(() => s.classList.add("lit"), 300 + k * 220); });
+
+  // photo quality / not teeth
+  const badPhoto = !r.is_teeth_photo || (r.photo_quality && r.photo_quality !== "good");
+  $("qualityBox").hidden = !badPhoto;
+  $("qualityText").textContent = !r.is_teeth_photo
+    ? "I couldn't find teeth in this picture. Smile wide, get close, and use bright light."
+    : (r.photo_tip || QUALITY[r.photo_quality] || "");
+
+  // photo with pins
+  $("resultImg").src = photoURL;
+  const box = $("photoBox"); box.querySelectorAll(".pin,.sample-tag").forEach(p => p.remove());
+  if (mode === "practice") {
+    // Sample spots don't belong to this photo, so don't pin them on it.
+    box.insertAdjacentHTML("beforeend", `<div class="sample-tag">🧪 Sample result. Dots appear here when AI checks your real photo.</div>`);
+  }
+  (mode === "practice" ? [] : r.spots).forEach((s, k) => {
+    const pin = document.createElement("div");
+    pin.className = "pin" + (s.kind === "possible cavity" ? " pulse" : "");
+    pin.style.left = (s.x * 100) + "%"; pin.style.top = (s.y * 100) + "%";
+    pin.style.background = KIND[s.kind].color; pin.textContent = k + 1;
+    pin.setAttribute("aria-label", `Spot ${k + 1}: ${KIND[s.kind].label}`);
+    box.appendChild(pin);
+  });
+  $("toothMap").innerHTML = toothMap(r.spots);
+  $("lookSection").hidden = !r.is_teeth_photo;
+
+  // spot list
+  const sp = $("spots");
+  if (!r.is_teeth_photo){
+    sp.innerHTML = `<div class="none"><span>🤔</span>No teeth to check yet. Try another photo!</div>`;
+  } else if (!r.spots.length){
+    sp.innerHTML = `<div class="none"><span>🎉</span>No spots found. Your teeth look clean in this photo!</div>`;
+  } else {
+    sp.innerHTML = r.spots.map((s, k) => {
+      const lvl = {low:1, medium:2, high:3}[s.certainty];
+      return `<div class="spot">
+        <div class="num" style="background:${KIND[s.kind].color}">${k + 1}</div>
+        <div>
+          <h4>${KIND[s.kind].emoji} ${KIND[s.kind].label}</h4>
+          <div class="where">${REGION_NAME[s.region]}</div>
+          <p><b>What I see:</b> ${esc(s.what_i_see)}</p>
+          <p><b>Why it matters:</b> ${esc(s.why_it_matters)}</p>
+          <div class="sure">How sure Toothie is: ${[1,2,3].map(j => `<i class="${j <= lvl ? "on" : ""}"></i>`).join("")} ${s.certainty}</div>
+        </div></div>`;
+    }).join("");
+  }
+
+  // good things
+  $("goodSection").hidden = !r.good_things.length;
+  $("good").innerHTML = r.good_things.map(g => `<span class="chip">✔ ${esc(g)}</span>`).join("");
+
+  // missions
+  $("missions").innerHTML = r.missions.map(m => `
+    <button class="mission" type="button" aria-pressed="false">
+      <span class="e">${esc(m.emoji)}</span><b>${esc(m.title)}</b><small>${esc(m.detail)}</small><span class="tick">Done today</span>
+    </button>`).join("");
+  $("missionScore").textContent = "";
+  document.querySelectorAll(".mission").forEach(btn => btn.onclick = () => {
+    btn.setAttribute("aria-pressed", btn.getAttribute("aria-pressed") === "true" ? "false" : "true");
+    const done = document.querySelectorAll('.mission[aria-pressed="true"]').length;
+    const total = r.missions.length;
+    $("missionScore").textContent = done === total ? "🏆 All missions done! Toothie is proud of you." : done ? `${done} of ${total} missions done. Keep going!` : "";
+  });
+
+  $("dentistNote").textContent = " " + r.dentist_note;
+
+  // text for read-aloud
+  lastSpeech = [ $("headline").textContent, $("summary").textContent,
+    ...r.spots.map((s, k) => `Spot ${k + 1}. ${KIND[s.kind].label}, ${REGION_NAME[s.region]}. ${s.why_it_matters}`),
+    r.missions.length ? "Your missions: " + r.missions.map(m => m.title).join(", ") + "." : "",
+    r.dentist_note ].join(" ");
+}
+
+/* tooth map: two arches of teeth, lit by region */
+function toothMap(spots){
+  const zoneKind = {};
+  const rank = {"possible cavity":4, tartar:3, plaque:2, stain:1};
+  spots.forEach(s => { if (!zoneKind[s.region] || rank[s.kind] > rank[zoneKind[s.region]]) zoneKind[s.region] = s.kind; });
+  const zoneOf = i => i < 3 ? "left" : i > 6 ? "right" : "front";
+  const arch = (upper) => {
+    let out = "";
+    for (let i = 0; i < 10; i++){
+      const t = (i - 4.5) / 4.5;                 // -1 .. 1
+      const x = 160 + t * 128;
+      const y = upper ? 112 - (1 - t * t) * 70 : 148 + (1 - t * t) * 70;
+      const big = Math.abs(t) > 0.6;             // back teeth are wider
+      const w = big ? 30 : 24, h = big ? 30 : 34;
+      const ang = Math.atan2(upper ? 140 * t : -140 * t, 128) * 180 / Math.PI;
+      const zone = (upper ? "upper-" : "lower-") + zoneOf(i);
+      const kind = zoneKind[zone];
+      const fill = kind ? KIND[kind].hex : "#FFFFFF";
+      out += `<rect x="${x - w/2}" y="${y - h/2}" width="${w}" height="${h}" rx="${big ? 9 : 11}" transform="rotate(${ang} ${x} ${y})"
+        fill="${fill}" stroke="#1D2B5C" stroke-width="3"><title>${REGION_NAME[zone]}${kind ? ": " + KIND[kind].label : ""}</title></rect>`;
+    }
+    return out;
+  };
+  return `<svg viewBox="-40 0 400 260" role="img" aria-label="Tooth map. ${Object.keys(zoneKind).map(z => REGION_NAME[z] + ": " + KIND[zoneKind[z]].label).join(". ") || "No spots marked."}">
+    <path d="M30 120 Q160 -20 290 120" fill="none" stroke="#FFB3C4" stroke-width="44" stroke-linecap="round" opacity=".55"/>
+    <path d="M30 140 Q160 280 290 140" fill="none" stroke="#FFB3C4" stroke-width="44" stroke-linecap="round" opacity=".55"/>
+    ${arch(true)}${arch(false)}
+    <text x="-36" y="134" font-family="Baloo 2" font-weight="700" font-size="15" fill="#4A5785">Left</text>
+    <text x="318" y="134" font-family="Baloo 2" font-weight="700" font-size="15" fill="#4A5785">Right</text>
+  </svg>`;
+}
+
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* read aloud (built into the browser, works offline) */
+$("readBtn").onclick = () => {
+  if (!("speechSynthesis" in window)) { $("readBtn").textContent = "🔇 Voice not available here"; return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(lastSpeech); u.rate = 0.95; u.pitch = 1.15;
+  speechSynthesis.speak(u);
+};
+
+$("againBtn").onclick = () => {
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+  photoFile = null; $("fileInput").value = ""; $("cameraInput").value = "";
+  tray.classList.remove("has-photo"); $("checkBtn").disabled = true; show("start");
+};
+
+/* ---- install as an app ---- */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+}
+let installEvent = null;
+window.addEventListener("beforeinstallprompt", e => {   // Android Chrome, Edge, desktop Chrome
+  e.preventDefault(); installEvent = e; $("installBtn").hidden = false;
+});
+$("installBtn").onclick = async () => {
+  if (!installEvent) return;
+  installEvent.prompt();
+  await installEvent.userChoice; installEvent = null; $("installBtn").hidden = true;
+};
+window.addEventListener("appinstalled", () => { $("installBtn").hidden = true; });
+// iPhone/iPad Safari has no install button, so show a one-line tip instead
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+if (isIOS && !standalone) $("iosTip").style.display = "block";
+</script>
+</body>
+</html>

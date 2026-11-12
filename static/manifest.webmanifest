@@ -1,0 +1,17 @@
+{
+  "name": "Smile Check",
+  "short_name": "Smile Check",
+  "description": "Kid-friendly AI tooth check with Toothie. A student science demo, not a medical device.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#E6F8F4",
+  "theme_color": "#0FA898",
+  "icons": [
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,36 @@
+# Builds the Smile Check container on GitHub (free) and stores it in
+# GitHub Container Registry as ghcr.io/<your-github-name>/smile-check:latest
+name: Build Smile Check image
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image name must be lowercase
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/smile-check:latest" >> "$GITHUB_ENV"
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}
+
+      - name: Show image name
+        run: echo "Your image is ${IMAGE}"

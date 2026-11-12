@@ -1,0 +1,9 @@
+# never upload secrets
+.env
+local.settings.json
+.venv/
+venv/
+__pycache__/
+*.zip
+
+.python_packages

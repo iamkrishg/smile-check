@@ -1,0 +1,10 @@
+.env
+.venv
+venv
+__pycache__
+.vscode
+*.zip
+local.settings.json
+.env.example
+local.settings.json.example
+README.md
