@@ -90,6 +90,18 @@ button{font:inherit;color:inherit}
 .tray.has-photo .preview{display:block}
 .tray.has-photo .tray-icon,.tray.has-photo .pick-text{display:none}
 
+.samples{margin-top:22px}
+.samples h2{font-size:24px;margin:0}
+.samples .sub{margin:4px 0 12px;color:var(--ink-soft);font-size:16px}
+.sample-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.sample{appearance:none;border:3px solid transparent;background:#fff;border-radius:var(--radius);padding:6px 6px 8px;cursor:pointer;text-align:center;
+  font-family:"Baloo 2";font-weight:700;font-size:16px;color:var(--ink);transition:transform .12s,border-color .15s}
+.sample img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px;margin-bottom:6px;background:var(--wash)}
+.sample:hover{border-color:var(--mint)}
+.sample:active{transform:scale(.97)}
+.sample[aria-busy="true"]{border-color:var(--gum)}
+.credit{font-size:12px;color:var(--ink-soft);margin:10px 2px 0}
+.sample-note{display:none;background:#fff;border:3px solid var(--line);border-radius:var(--radius);padding:10px 16px;margin-bottom:16px;font-size:16px}
 .tips{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
 .tip{background:#fff;border-radius:var(--radius);padding:14px;display:flex;gap:10px;align-items:flex-start;font-size:16px}
 .tip b{display:block;font-family:"Baloo 2";font-size:18px}
@@ -197,6 +209,8 @@ details.grownups ol{margin:10px 0 0;padding-left:22px}
   .hero .mascot-box{width:140px;margin:0 auto}
   .bubble::before{left:50%;top:-16px;margin:0 0 0 -14px;border:14px solid transparent;border-bottom:18px solid #fff;border-top:0}
   .tips{grid-template-columns:1fr}
+  .sample-row{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:42%;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px}
+  .sample{scroll-snap-align:start}
   .verdict{grid-template-columns:1fr;text-align:center}
   .verdict .mascot-box{width:130px;margin:0 auto}
   .stars{justify-content:center}
@@ -271,6 +285,23 @@ details.grownups ol{margin:10px 0 0;padding-left:22px}
       <div class="error" id="error" role="alert"></div>
     </section>
 
+    {% if samples %}
+    <section class="samples" aria-labelledby="samplesTitle">
+      <h2 id="samplesTitle">No photo? Try a sample</h2>
+      <p class="sub">Tap a photo and Toothie checks it right away.</p>
+      <div class="sample-row">
+        {% for smp in samples %}
+        <button class="sample" type="button" data-id="{{ smp.id }}" data-label="{{ smp.label }}"
+                data-full="/static/samples/{{ smp.file }}">
+          <img src="/static/samples/{{ smp.file | replace('.jpg', '-thumb.jpg') }}" alt="Sample photo: {{ smp.label }}" loading="lazy">
+          {{ smp.label }}
+        </button>
+        {% endfor %}
+      </div>
+      <p class="credit">Sample photos are for demonstration only. Not real patient results.</p>
+    </section>
+    {% endif %}
+
     <section class="tips" aria-label="Photo tips">
       <div class="tip"><span class="e">💡</span><div><b>Bright light</b>Stand near a window or turn on a lamp.</div></div>
       <div class="tip"><span class="e">😁</span><div><b>Big smile</b>Open wide so the teeth are easy to see.</div></div>
@@ -289,6 +320,7 @@ details.grownups ol{margin:10px 0 0;padding-left:22px}
 
   <!-- STEP 3: results -->
   <section id="results" aria-live="polite">
+    <div class="sample-note" id="sampleNote"></div>
     <div class="practice" id="practice" hidden><b>🧪 Practice mode.</b> <span id="practiceWhy"></span> Connect Azure AI to check real photos.</div>
 
     <div class="verdict" id="verdict">
@@ -421,7 +453,7 @@ function setPhoto(file){
   if (!file) return;
   if (!file.type.startsWith("image/")) { showError("That isn't a photo. Pick a JPG or PNG picture."); return; }
   photoFile = file;
-  if (photoURL) URL.revokeObjectURL(photoURL);
+  if (photoURL && photoURL.startsWith("blob:")) URL.revokeObjectURL(photoURL);
   photoURL = URL.createObjectURL(file);
   $("previewImg").src = photoURL;
   tray.classList.add("has-photo");
@@ -432,12 +464,26 @@ function setPhoto(file){
 /* sending it */
 const LOAD_MSGS = ["Counting teeth", "Looking for brown spots", "Checking near the gums", "Writing your report"];
 let loadTimer;
-$("checkBtn").onclick = async () => {
+$("checkBtn").onclick = () => {
   if (!photoFile) return;
+  const form = new FormData(); form.append("photo", photoFile);
+  runCheck(form);
+};
+
+/* sample photos: one tap = check */
+document.querySelectorAll(".sample").forEach(btn => btn.onclick = () => {
+  showError("");
+  photoFile = null;
+  if (photoURL && photoURL.startsWith("blob:")) URL.revokeObjectURL(photoURL);
+  photoURL = btn.dataset.full;
+  const form = new FormData(); form.append("sample", btn.dataset.id);
+  runCheck(form);
+});
+
+async function runCheck(form){
   show("loading");
   let i = 0; $("loadMsg").textContent = LOAD_MSGS[0];
   loadTimer = setInterval(() => { i = (i + 1) % LOAD_MSGS.length; $("loadMsg").textContent = LOAD_MSGS[i]; }, 1600);
-  const form = new FormData(); form.append("photo", photoFile);
   try {
     const res = await fetch("/api/check", {method:"POST", body:form});
     const data = await res.json();
@@ -448,7 +494,7 @@ $("checkBtn").onclick = async () => {
     show("start");
     showError(err.message.includes("fetch") ? "Can't reach Smile Check. Is the Python app still running?" : err.message);
   } finally { clearInterval(loadTimer); }
-};
+}
 
 function show(id){
   ["start","loading","results"].forEach(s => $(s).style.display = s === id ? "block" : "none");
@@ -456,8 +502,10 @@ function show(id){
 }
 
 /* results */
-function renderResults({mode, reason, result: r}){
+function renderResults({mode, reason, sample, result: r}){
   show("results");
+  $("sampleNote").style.display = sample ? "block" : "none";
+  $("sampleNote").textContent = sample ? "📷 Sample photo: " + sample : "";
   $("practice").hidden = mode !== "practice";
   $("practiceWhy").textContent = reason || "";
 

@@ -150,6 +150,17 @@ def setup_report() -> None:
 GRID = 6
 COLS = "ABCDEF"
 
+# Sample photos visitors can tap to try Smile Check (files in static/samples/)
+SAMPLES = [
+    {"id": "s1", "label": "Bottom teeth A", "file": "sample-1.jpg"},
+    {"id": "s2", "label": "Bottom teeth B", "file": "sample-2.jpg"},
+    {"id": "s3", "label": "Bottom teeth C", "file": "sample-3.jpg"},
+    {"id": "s4", "label": "Top teeth A", "file": "sample-4.jpg"},
+    {"id": "s5", "label": "Top teeth B", "file": "sample-5.jpg"},
+]
+SAMPLE_BY_ID = {x["id"]: x for x in SAMPLES}
+SAMPLE_CACHE = {}  # sample id -> AI result, so repeat taps are instant and consistent
+
 
 def prepare_image(file_bytes: bytes) -> Image.Image:
     """Rotate correctly, remove EXIF/location data and shrink. Kept in memory only."""
@@ -346,7 +357,7 @@ PRACTICE_RESULT = {
 @app.get("/")
 @app.get("/home")   # backup address: use /home if Azure shows its own start page at /
 def home():
-    return render_template("index.html")
+    return render_template("index.html", samples=SAMPLES)
 
 
 @app.get("/sw.js")
@@ -400,11 +411,19 @@ def status():
 
 @app.post("/api/check")
 def check():
-    photo = request.files.get("photo")
-    if not photo:
-        return jsonify({"error": "No photo was sent. Pick or take a photo first."}), 400
+    sample = SAMPLE_BY_ID.get(request.form.get("sample", ""))
+    if sample:
+        if sample["id"] in SAMPLE_CACHE and azure_ready():
+            return jsonify({"mode": "ai", "sample": sample["label"], "result": SAMPLE_CACHE[sample["id"]]})
+        with open(os.path.join(HERE, "static", "samples", sample["file"]), "rb") as f:
+            raw = f.read()
+    else:
+        photo = request.files.get("photo")
+        if not photo:
+            return jsonify({"error": "No photo was sent. Pick or take a photo first."}), 400
+        raw = photo.read()
     try:
-        img = prepare_image(photo.read())
+        img = prepare_image(raw)
     except Exception:
         return jsonify({"error": "That file isn't a photo I can open. Try a JPG or PNG picture."}), 400
 
@@ -413,6 +432,9 @@ def check():
             result = clean_result(ask_azure(to_b64(img), to_b64(grid_copy(img))))
             for spot in result["spots"]:
                 place_spot(img, spot)
+            if sample:
+                SAMPLE_CACHE[sample["id"]] = result
+                return jsonify({"mode": "ai", "sample": sample["label"], "result": result})
             return jsonify({"mode": "ai", "result": result})
         except Exception as exc:  # internet down, wrong key, content filter, etc.
             logging.warning("[Smile Check] Azure call failed, using practice mode: %s", exc)
