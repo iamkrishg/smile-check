@@ -26,6 +26,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageOps
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(HERE, ".env")
 # encoding="utf-8-sig" also handles files saved by Notepad with a hidden "BOM" mark
+# test 
 
 
 def load_env_file(path: str) -> None:
